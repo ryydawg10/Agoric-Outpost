@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="The Agoric Outpost is the Macro-economic Insights Platform, 
+    operating independently from the main network chains able to visualize network trends, 
+    consensus parameters and capable of alerting subscribers upon anomalous activities">
+    <meta property="og:description" content="The Agoric Outpost is the Macro-economic Insights Platform, 
+    operating independently from the main network chains able to visualize network trends, 
+    consensus parameters, and capable of alerting subscribers upon anomalous activities">
+    <meta name="keywords" content="KysenPool, Agoric, Outpost, Graph, Network, consensus, Transaction, Reward">
+    <meta property="og:title" content="Agoric Outpost">
+    <meta property="og:type" content="website">
+    <title>Agoric Outpost</title>
+    <link rel="stylesheet" href="network-stats-styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+</head>
+<body>
+
+    <div class="header-bar">
+        Agoric <span class="bold-text">Outpost</span>
+            <button class="page-buttons active">
+                <img src="icons/network-stats.png" class="button-icon1">Network Stats
+            </button>
+            <button class="page-buttons" onclick="window.location.href='consensus-parameters.html'">
+                <img src="icons/parameters.png" class="button-icon2">
+                Parameters
+            </button>
+        <button id="menu-toggle" class="hamburger-button">≡</button>
+    </div>
+    <hr id="line" class="line hidden">
+    <div id="dropdown-menu" class="dropdown hidden">
+        <button class="page-buttons-dropdown" id="network-stats" onclick="window.location.href='network-stats.html'">
+            <img src="icons/network-stats.png" class="button-icon1">Network Stats
+        </button>
+        <button class="page-buttons-dropdown" onclick="window.location.href='consensusParameter.html'">
+            <img src="icons/parameters.png" class="button-icon2">
+            Parameters
+        </button>
+      </div>
+
+    <div class="container">
+    <div class="timeframe-buttons-div">
+        <div class="timeframe-center">
+        <button class="timeframe-buttons" id="4hr">4h</button>
+        <button class="timeframe-buttons" id="1day">1d</button>
+        <button class="timeframe-buttons" id="4day">4d</button>
+        <button class="timeframe-buttons" id="8day">8d</button>
+        <button class="timeframe-buttons" id="15day">15d</button>
+        <button class="timeframe-buttons" id="1month">30d</button>
+    </div>
+    <div class="interval-buttons-wrapper">
+        <button class="interval-buttons" id="5min">5min</button>
+        <button class="interval-buttons" id="15min">15min</button>
+        <button class="interval-buttons" id="30min">30min</button>
+    </div>
+    </div>
+    <div class="flex-container">
+
+        <div class="chart-container">
+            <div class="chart-title">DELEGATIONS</div>
+            <canvas class="chart" id="chart1"></canvas>
+        </div>
+        <div class="chart-container">
+            <div class="chart-title">TRANSACTION SUCCESS/FAIL</div>
+            <canvas class="chart" id="chart3"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">REWARDS</div>
+            <canvas class="chart" id="chart2"></canvas>
+        </div>
+        <div class="chart-container">
+            <div class="chart-title">SENDS</div>
+            <canvas class="chart" id="chart4"></canvas>
+        </div>
+    </div>
+    <div class="cred-div">
+        <div class="center-content">
+          <strong>Agoric Outpost</strong> <em>by</em> 
+          <a href="https://www.kysenpool.io/en" class="kysen-link" target="_blank">Kysen Pool</a>
+        </div>
+        <div class="timestamp" id="timestamp">TimeStamp</div>
+      </div>
+    <div class="rights-res-div">
+        <strong>© 2025 - All rights reserved</strong>
+    </div>
+</div>
+    <script src="network-stats-script.js"></script>
+</body>
+</html>

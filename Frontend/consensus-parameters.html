@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agoric Blockchain Parameters</title>
+    <link rel="stylesheet" href="consensus-parameter-styles.css">
+</head>
+<body>
+    <div class="header-bar">
+        Agoric <span class="bold-text">Outpost</span>
+        <button class="page-buttons" onclick="window.location.href='network-stats.html'">
+            <img src="icons/network-stats.png" class="button-icon1">Network Stats
+        </button>   
+        <button class="page-buttons active">
+            <img src="icons/parameters.png" class="button-icon2">
+            Parameters
+        </button>
+        <button id="menu-toggle" class="hamburger-button">≡</button>
+    </div>
+    <hr id="line" class="line hidden">
+    <div id="dropdown-menu" class="dropdown hidden">
+        <button class="page-buttons-dropdown" id="network-stats" onclick="window.location.href='network-stats.html'">
+            <img src="icons/network-stats.png" class="button-icon1">Network Stats
+        </button>
+        <button class="page-buttons-dropdown" onclick="window.location.href='consensus-parameters.html'">
+            <img src="icons/parameters.png" class="button-icon2">
+            Parameters
+        </button>
+      </div>
+    </div>
+    <div class="container">
+        <h1>Blockchain Parameters</h1>
+
+        <div class="param-container">
+            <div class="param-section">
+                <h2>Minting Parameters</h2>
+                <ul>
+                    <li><span>Mint Denom:</span> UBLD</li>
+                    <li><span>Inflation Rate Change:</span> 13%</li>
+                    <li><span>Inflation Max:</span> 5%</li>
+                    <li><span>Inflation Min:</span> 5%</li>
+                    <li><span>Goal Bonded:</span> 67%</li>
+                    <li><span>Blocks Per Year:</span> 6,311,520</li>
+                </ul>
+            </div>
+        
+            <div class="param-section">
+                <h2>Governance Parameters</h2>
+                <ul>
+                    <li><span>Min Deposit:</span> 5,000.00 BLD</li>
+                    <li><span>Max Deposit Period:</span> 2 days</li>
+                    <li><span>Quorum:</span> 33%</li>
+                    <li><span>Threshold:</span> 50%</li>
+                    <li><span>Veto Threshold:</span> 33%</li>
+                    <li><span>Voting Period:</span> 3 days</li>
+                </ul>
+            </div>
+        
+            <div class="param-section">
+                <h2>Slashing Parameters</h2>
+                <ul>
+                    <li><span>Signed Block Window:</span> 5,000</li>
+                    <li><span>Min Signed Per Window:</span> 5%</li>
+                    <li><span>Downtime Jail Duration:</span> 10 minutes</li>
+                    <li><span>Slash Fraction Double Sign:</span> 5%</li>
+                    <li><span>Slash Fraction Downtime:</span> 0%</li>
+                </ul>
+            </div>
+        
+            <div class="param-section">
+                <h2>Staking Parameters</h2>
+                <ul>
+                    <li><span>Unbonding Time:</span> 21 days</li>
+                    <li><span>Max Validators:</span> 100</li>
+                    <li><span>Max Entries:</span> 7</li>
+                    <li><span>Historical Entries:</span> 10,000</li>
+                    <li><span>Bond Denom:</span> UBLD</li>
+                </ul>
+            </div>
+        
+            <div class="param-section">
+                <h2>Distribution Parameters</h2>
+                <ul>
+                    <li><span>Community Tax:</span> 0%</li>
+                    <li><span>Base Proposer Reward:</span> 0%</li>
+                    <li><span>Bonus Proposer Reward:</span> 0%</li>
+                    <li><span>Withdraw Address Enabled:</span> true</li>
+                </ul>
+            </div>
+        
+            <div class="param-section">
+                <h2>Miscellaneous Parameters</h2>
+                <ul>
+                    <li><span>Cosmos SDK Version:</span> v0.46.16</li>
+                    <li><span>Binary Version:</span> 0.35.0-u18.5</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="cred-div">
+        <strong>Agoric Outpost</strong> <em>by</em> 
+        <a href="https://www.kysenpool.io/en" class="kysen-link" target="_blank">Kysen Pool</a>
+        
+      </div>
+    <div class="rights-res-div">
+        <strong>© 2025 - All rights reserved</strong>
+    </div>
+    <script src="consensus-parameters-script.js"></script>
+</body>
+</html>
