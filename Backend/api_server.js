@@ -19,23 +19,24 @@ app.get('/api/4hr/fullLoad', async (req,res)=> {
   const listLength = await getListLength('sends_data');
   let fourHrData;
   let tempTimeStamp;
-  if(listLength<23)
+  if(listLength<23) //one entry is left open for newest entry
   {
     fourHrData = await getData(listLength);
   } else {
     fourHrData = await getData(23);
   }
+  if(!fourHrData) // Return 404 if Redis has no stored data yet (prevents crash on empty DB)
+  {
+    return res.status(404).json({ error: 'No data found' });
+  }
   let newestEntry = getRunningSum();
-  fourHrData.sends.unshift(newestEntry.sendsEntry);
-  fourHrData.delegations.unshift(newestEntry.delegationsEntry);
-  fourHrData.successFail.unshift(newestEntry.successFailEntry);
-  fourHrData.rewards.unshift(newestEntry.rewardsEntry);
+  fourHrData = addNewestEntry(fourHrData, newestEntry);
   
   for(let i = 0;i<fourHrData.sends.length;i++)
   {
-    nullChecker(fourHrData, i);
+    nullChecker(fourHrData, i);//replaces any null entries with 0
     tempTimeStamp = fourHrData.sends[i].timeStamp;
-    if (tempTimeStamp.charAt(12) === ' ') {
+    if (tempTimeStamp.charAt(12) === ' ') {  //timestamp formatting
       tempTimeStamp = tempTimeStamp.substring(0, 12) + tempTimeStamp.substring(13);
       tempTimeStamp = tempTimeStamp + ' - ' + tempTimeStamp.substring(tempTimeStamp.length-5, tempTimeStamp.length-1) + '9';
     }
@@ -52,6 +53,7 @@ app.get('/api/4hr/fullLoad', async (req,res)=> {
   res.json({fourHrData});
 })
 
+//1day timeframe
 app.get('/api/1day/fullLoad', async (req,res)=> {
   const listLength = await getListLength('sends_data');
   let oneDayData;
@@ -75,11 +77,12 @@ app.get('/api/1day/fullLoad', async (req,res)=> {
   } else {
     oneDayData = await getData(143);
   }
+  if(!oneDayData)
+  {
+    return res.status(404).json({ error: 'No data found' });
+  }
   let newestEntry = getRunningSum();
-  oneDayData.sends.unshift(newestEntry.sendsEntry);
-  oneDayData.delegations.unshift(newestEntry.delegationsEntry);
-  oneDayData.successFail.unshift(newestEntry.successFailEntry);
-  oneDayData.rewards.unshift(newestEntry.rewardsEntry);
+  oneDayData = addNewestEntry(oneDayData,newestEntry);
   for(let i = 0;i<oneDayData.sends.length-1;i++)
   {
     if(count == 24)
@@ -88,7 +91,7 @@ app.get('/api/1day/fullLoad', async (req,res)=> {
     }
     nullChecker(oneDayData, i);
     tempTimeStamp = oneDayData.sends[i].timeStamp;
-    if(tempTimeStamp.substring(15,17)=='00')
+    if(tempTimeStamp.substring(15,17)=='00')//loops through data until an even hour point is found
     {
       oneHourSendsSum+=parseFloat(oneDayData.sends[i].value);
       oneHourDelegationsSum+=parseFloat(oneDayData.delegations[i].value);
@@ -130,6 +133,7 @@ app.get('/api/1day/fullLoad', async (req,res)=> {
   res.json({formattedOneDayData});
 })
 
+//4day timeframe
 app.get('/api/4day/fullLoad', async (req,res)=> {
   const listLength = await getListLength('sends_data');
   let fourDayData;
@@ -155,11 +159,12 @@ app.get('/api/4day/fullLoad', async (req,res)=> {
   } else {
     fourDayData = await getData(575);
   }
+  if(!fourDayData)
+  {
+    return res.status(404).json({ error: 'No data found' });
+  }
   let newestEntry = getRunningSum();
-  fourDayData.sends.unshift(newestEntry.sendsEntry);
-  fourDayData.delegations.unshift(newestEntry.delegationsEntry);
-  fourDayData.successFail.unshift(newestEntry.successFailEntry);
-  fourDayData.rewards.unshift(newestEntry.rewardsEntry);
+  fourDayData = addNewestEntry(fourDayData,newestEntry);
   for(let i = 0;i<fourDayData.sends.length-1;i++)
   {
     if(count == 24)
@@ -172,7 +177,7 @@ app.get('/api/4day/fullLoad', async (req,res)=> {
     {
       hourDigits = tempTimeStamp.substring(12,14);
       hourDigits = parseInt(hourDigits, 10);
-      if(hourDigits%4==0)
+      if(hourDigits%4==0) //loops through data until an even 4hr point is found
       {
         tempTimeStamp = tempTimeStamp.substring(0,17);
         hourDigits+=3;
@@ -235,6 +240,7 @@ app.get('/api/4day/fullLoad', async (req,res)=> {
   res.json({formattedFourDayData});
 })
 
+//8day timeframe
 app.get('/api/8day/fullLoad', async (req,res)=> {
   const listLength = await getListLength('sends_data');
   let eightDayData;
@@ -260,11 +266,12 @@ app.get('/api/8day/fullLoad', async (req,res)=> {
   } else {
     eightDayData = await getData(1151);
   }
+  if(!eightDayData)
+  {
+    return res.status(404).json({ error: 'No data found' });
+  }
   let newestEntry = getRunningSum();
-  eightDayData.sends.unshift(newestEntry.sendsEntry);
-  eightDayData.delegations.unshift(newestEntry.delegationsEntry);
-  eightDayData.successFail.unshift(newestEntry.successFailEntry);
-  eightDayData.rewards.unshift(newestEntry.rewardsEntry);
+  eightDayData = addNewestEntry(eightDayData,newestEntry);
   for(let i = 0;i<eightDayData.sends.length-1;i++)
   {
     if(count == 24)
@@ -277,7 +284,7 @@ app.get('/api/8day/fullLoad', async (req,res)=> {
     {
       hourDigits = tempTimeStamp.substring(12,14);
       hourDigits = parseInt(hourDigits, 10);
-      if(hourDigits%8==0)
+      if(hourDigits%8==0) //loops through data until an even 8hr point is found
       {
         tempTimeStamp = tempTimeStamp.substring(0,17);
         hourDigits+=7;
@@ -340,6 +347,7 @@ app.get('/api/8day/fullLoad', async (req,res)=> {
   res.json({formattedEightDayData});
 })
 
+//15 day timeframe
 app.get('/api/15day/fullLoad', async (req,res)=> {
 
   const listLength = await getListLength('sends_data');
@@ -365,11 +373,12 @@ app.get('/api/15day/fullLoad', async (req,res)=> {
   } else {
     fifteenDayData = await getData(2159);
   }
+  if(!fifteenDayData)
+  {
+    return res.status(404).json({ error: 'No data found' });
+  }
   let newestEntry = getRunningSum();
-  fifteenDayData.sends.unshift(newestEntry.sendsEntry);
-  fifteenDayData.delegations.unshift(newestEntry.delegationsEntry);
-  fifteenDayData.successFail.unshift(newestEntry.successFailEntry);
-  fifteenDayData.rewards.unshift(newestEntry.rewardsEntry);
+  fifteenDayData = addNewestEntry(fifteenDayData,newestEntry);
   for(let i = 0;i<fifteenDayData.sends.length-1;i++)
   {
     if(count==15)
@@ -378,7 +387,7 @@ app.get('/api/15day/fullLoad', async (req,res)=> {
     }
     nullChecker(fifteenDayData, i);
     tempTimeStamp = fifteenDayData.sends[i].timeStamp;
-    if(tempTimeStamp.substring(12,17)=='00:00')
+    if(tempTimeStamp.substring(12,17)=='00:00') //loops through data until an even day point is found
     {
       tempTimeStamp = formatTimeStamp(tempTimeStamp);
       tempTimeStamp = tempTimeStamp.substring(0,17);
@@ -421,6 +430,7 @@ app.get('/api/15day/fullLoad', async (req,res)=> {
   res.json({formattedFifteenDayData});
 })
 
+//1month timeframe
 app.get('/api/1month/fullLoad', async (req,res)=> {
   const listLength = await getListLength('sends_data');
   let oneMonthData;
@@ -445,11 +455,12 @@ app.get('/api/1month/fullLoad', async (req,res)=> {
   } else {
     oneMonthData = await getData(4031);
   }
+  if(!oneMonthData)
+  {
+    return res.status(404).json({ error: 'No data found' });
+  }
   let newestEntry = getRunningSum();
-  oneMonthData.sends.unshift(newestEntry.sendsEntry);
-  oneMonthData.delegations.unshift(newestEntry.delegationsEntry);
-  oneMonthData.successFail.unshift(newestEntry.successFailEntry);
-  oneMonthData.rewards.unshift(newestEntry.rewardsEntry);
+  oneMonthData = addNewestEntry(oneMonthData,newestEntry);
   for(let i = 0;i<oneMonthData.sends.length-1;i++)
   {
     if(count==28)
@@ -458,7 +469,7 @@ app.get('/api/1month/fullLoad', async (req,res)=> {
     }
     nullChecker(oneMonthData, i);
     tempTimeStamp = oneMonthData.sends[i].timeStamp;
-    if(tempTimeStamp.substring(12,17)=='00:00')
+    if(tempTimeStamp.substring(12,17)=='00:00') //loops through data until an even day point is found
     {
       tempTimeStamp = formatTimeStamp(tempTimeStamp);
       tempTimeStamp = tempTimeStamp.substring(0,17);
@@ -500,6 +511,17 @@ app.get('/api/1month/fullLoad', async (req,res)=> {
   res.json({formattedOneMonthData});
 })
 
+//module parameters
+app.get('/api/params', async (req,res)=> {
+  let paramData = await client.get('param_data');
+  if (!paramData) {
+  return res.status(404).json({ error: 'No parameter data found' });
+}
+  paramData = JSON.parse(paramData);
+  console.log(paramData);
+  res.json({paramData});
+})
+
 
 
 app.get('*', (req, res) => {
@@ -507,10 +529,9 @@ app.get('*', (req, res) => {
 });
 // Start the server and listen for requests
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
 });
 
-
+// gets (length) data points from redis
 async function getData(length) {
   let sendData = await client.LRANGE('sends_data', 0, length-1);
   let delegationData = await client.LRANGE('delegation_data', 0, length-1);
@@ -527,11 +548,13 @@ async function getData(length) {
   return dataObject;
 }
 
+// checks how many data points are in redis
 async function getListLength(listName) {
   const length = await client.lLen(listName);
   return length;
 }
 
+//timestamp formatting function. used when applicable 
 function formatTimeStamp(timeStamp) {
   if (timeStamp.charAt(12) === ' ') {
     timeStamp = timeStamp.substring(0, 12) + timeStamp.substring(13);
@@ -544,6 +567,7 @@ function formatTimeStamp(timeStamp) {
   return timeStamp;
 }
 
+//null checker utility function
 function nullChecker(data, index){
   if(data.sends[index].value==null || data.sends[index].value==undefined)
   {
@@ -565,4 +589,16 @@ function nullChecker(data, index){
   {
     data.rewards[index].value = 0;
   }
+}
+
+//adds most recent(incomplete) entry
+function addNewestEntry(data,newestEntry){
+  if(newestEntry)
+  {
+    data.sends.unshift(newestEntry.sendsEntry);
+    data.delegations.unshift(newestEntry.delegationsEntry);
+    data.successFail.unshift(newestEntry.successFailEntry);
+    data.rewards.unshift(newestEntry.rewardsEntry);
+  }
+  return data;
 }
