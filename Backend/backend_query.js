@@ -1,5 +1,5 @@
-
 const https = require('http');
+const httpsReal = require('https');
 const client = require('./redis');
 const { timeStamp } = require('console');
 
@@ -158,30 +158,39 @@ async function storeOldSend(send, delegation, successFail, rewards) { //stores s
   await client.RPUSH('rewards_data', rewards);
 }
 
+/*
+The realTimeQuery function and historicalQuery work together for the first 10 minute interval of data and diverge after. 
+For the first 10 minute interval, realTimeQuery and historicalQuery share the same counters(sends, delegations, success/fail, rewards). 
+RealTimeQuery moves forward and historicalQuery moves backwards. Once historicalQuery reaches it's end of the 10 minute interval it starts using it's own sum from then on immedietly.
+If realtimeQuery reaches its end of the chunk before historicalQuery it waits for historicalQuery to reach it's end of the chunk before sending the data to redis and moving onto the next chunk.
+This ensures the first 10 minute chunk of data is accurate.
+*/
+
 
 
 
 async function realTimeQuery() { //Main function for getting real time data
-  let boo = true;
+  let firstBlock = false;
   mostRecentBlock = await getLatestBlock();
   let lastRealtimeTs = await getBlockTime(mostRecentBlock-1);
   reverseBlock= mostRecentBlock-1;
   while (true) {
-            await getRealTimeSends()
+            await getRealTimeData()
             if(success==true)
             {
             realTimeTs = await getBlockTime(mostRecentBlock);
-            if(boo)
+            if(firstBlock==false)
             {
             lastTs=realTimeTs;
-            boo = false;
+            firstBlock = true;
             }
-            if(realTimeTs.substring(15,16)=='0' && lastRealtimeTs.substring(15,16)!=realTimeTs.substring(15,16))
+            if(realTimeTs.substring(15,16)=='0' && lastRealtimeTs.substring(15,16)!=realTimeTs.substring(15,16)) //finds the end of the 10 minute interval
             {
-              while(startTime==null)
+              while(startTime==null)//waits for historicalQuery to reach the end of the first interval before finalizing the first 10 minute interval
               {
                 await delay(1000);
               }
+              //format and store in redis excluding current block
               let formattedTs = startTime.substring(0,11) + " " + startTime.substring(11,17);
               tenMinSend = formatToBLD(tenMinSend);
               let sendsJsonStr = {value: tenMinSend, timeStamp: formattedTs};
@@ -195,12 +204,15 @@ async function realTimeQuery() { //Main function for getting real time data
               let newRewards = {value: tenMinRewards, timeStamp: formattedTs};
               newRewards = JSON.stringify(newRewards);
               await storeNewSend(sendsJsonStr, delegationsJsonStr, newSuccessFail, newRewards);
+
+              //reset counters
               tenMinSend=0;
               tenMinDelegation=0;
               successCount=0;
               failCount=0;
               tenMinRewards=0;
-
+              
+              //add current block data to counters
               successCount+=recentBlockData.tSuccessCount;
               failCount+=recentBlockData.tFailCount;
               tenMinSend+=recentBlockData.sends;
@@ -230,14 +242,14 @@ async function realTimeQuery() { //Main function for getting real time data
 
 async function historicalQuery() //Main function for getting historical data
 {
-  let boo = true;
+  let firstInterval = true;
   let formattedTs;
   let length = await client.lLen('sends_data');
 
   while(length<4030)
   {
     length = await client.lLen('sends_data');
-    while (lastTs==null)
+    while (lastTs==null)//timestamp of realTimeQuerys first block
     {
       await delay(1000);
     }
@@ -246,11 +258,11 @@ async function historicalQuery() //Main function for getting historical data
     {
       continue;
     }
-    await getHistoricalSends();
+    await getHistoricalData();
 
-    if(Ts.substring(15,16)=='9' && lastTs.substring(15,16)!=Ts.substring(15,16))
+    if(Ts.substring(15,16)=='9' && lastTs.substring(15,16)!=Ts.substring(15,16))//find the end of the 10 minute interval
     {
-      if(boo == true)
+      if(firstInterval == true)//end of first 10 minute interval
       {
 
         revTenMinSend+=oldBlockData.sends;
@@ -259,11 +271,12 @@ async function historicalQuery() //Main function for getting historical data
         revFailCount+=oldBlockData.tFailCount;
         revTenMinRewards+=oldBlockData.rewards;
 
-        startTime= lastTs.substring(0,11) + " " + lastTs.substring(11,17);
-        boo = false;
+        startTime= lastTs.substring(0,11) + " " + lastTs.substring(11,17);//sets startTime allowing realTimeQuery to finalize the first 10 minute interval once it reaches the end.
+        firstInterval = false;
       }
       else
       {
+      //send currunt counts to redis excluding current block
       formattedTs = lastTs.substring(0,11) + " " + lastTs.substring(11,17);
       revTenMinSend = formatToBLD(revTenMinSend);
       let oldSendsJsonStr = {value: revTenMinSend, timeStamp: formattedTs};
@@ -278,12 +291,14 @@ async function historicalQuery() //Main function for getting historical data
       oldRewards = JSON.stringify(oldRewards);
       await storeOldSend(oldSendsJsonStr, oldDelegationJsonStr, oldSuccessFail, oldRewards);
 
+      //reset counters
       revTenMinSend=0;
       revTenMinDelegation=0;
       revSuccessCount = 0;
       revFailCount = 0;
       revTenMinRewards = 0;
 
+      //add current block data to counters
       revTenMinSend+=oldBlockData.sends;
       revTenMinDelegation+=oldBlockData.delegations;
       revSuccessCount = oldBlockData.tSuccessCount;
@@ -295,7 +310,7 @@ async function historicalQuery() //Main function for getting historical data
     }
     else
     {
-      if(boo == true)
+      if(firstInterval == true)//hasn't reached the end of the first 10 min interval
       {
         tenMinSend+=oldBlockData.sends;
         tenMinDelegation+=oldBlockData.delegations;
@@ -343,13 +358,12 @@ async function getBlockTime(blockHeight)
   })
 })}
 
-
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-//historical data query function
-async function getHistoricalSends()
+// API call function used by historicalQuery to fetch data for a specific block height (reverseBlock)
+async function getHistoricalData()
 {
   
   await new Promise((resolve, reject) => {
@@ -386,8 +400,8 @@ async function getHistoricalSends()
   });
 })}
 
-
-async function getRealTimeSends()
+// API call function used by realTimeQuery to fetch data for the latest block height (mostRecentBlock)
+async function getRealTimeData()
 {
 
   await new Promise((resolve, reject) => {
@@ -425,14 +439,124 @@ async function getRealTimeSends()
   })
 }
 
-/*
-setInterval(() => {
-  console.log(`Memory usage: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)} MB`);
-}, 5000);
-*/
+//map for fetching parameter data
+const queryMap = {
+  minting: {
+    url: `https://main.api.agoric.net/cosmos/mint/v1beta1/params`,
+    extract: (data) => ({
+      mintDenom: data.params.mint_denom,
+      inflationRateChange: data.params.inflation_rate_change,
+      inflationMax: data.params.inflation_max,
+      inflationMin: data.params.inflation_min,
+      goalBonded: data.params.goal_bonded,
+      blocksPerYear: data.params.blocks_per_year
+    })
+  },
+  staking: {
+    url: `https://main.api.agoric.net/cosmos/staking/v1beta1/params`,
+    extract: (data) => ({
+      unbondingTime: data.params.unbonding_time,
+      maxValidators: data.params.max_validators,
+      maxEntries: data.params.max_entries,
+      historicalEntries: data.params.historical_entries,
+      bondDenom: data.params.bond_denom
+    })
+  },
+  distribution: {
+    url: `https://main.api.agoric.net/cosmos/distribution/v1beta1/params`,
+    extract: (data) => ({
+      communityTax: data.params.community_tax,
+      baseProposerReward: data.params.base_proposer_reward,
+      bonusProposerReward: data.params.bonus_proposer_reward,
+      withdrawAddrEnabled: data.params.withdraw_addr_enabled
+    })
+  },
+  slashing: {
+    url: `https://main.api.agoric.net/cosmos/slashing/v1beta1/params`,
+    extract: (data) => ({
+      signedBlocksWindow: data.params.signed_blocks_window,
+      minSignedPerWindow: data.params.min_signed_per_window,
+      downtimeJailDuration: data.params.downtime_jail_duration,
+      slashFractionDoubleSign: data.params.slash_fraction_double_sign,
+      slashFractionDowntime: data.params.slash_fraction_downtime
+    })
+  },
+  govVoting: {
+    url: `https://main.api.agoric.net/cosmos/gov/v1beta1/params/voting`,
+    extract: (data) => ({
+      votingPeriod: data.voting_params.voting_period
+    })
+  },
+  govDeposit: {
+    url: `https://main.api.agoric.net/cosmos/gov/v1beta1/params/deposit`,
+    extract: (data) => ({
+      minDeposit: data.deposit_params.min_deposit[0],
+      maxDepositPeriod: data.deposit_params.max_deposit_period
+    })
+  },
+  govTallying: {
+    url: `https://main.api.agoric.net/cosmos/gov/v1beta1/params/tallying`,
+    extract: (data) => ({
+      quorum: data.tally_params.quorum,
+      threshold: data.tally_params.threshold,
+      vetoThreshold: data.tally_params.veto_threshold
+    })
+  },
+  versionInfo: {
+    url: `https://main.api.agoric.net/cosmos/base/tendermint/v1beta1/node_info`,
+    extract: (data) => ({
+      sdkVersion: data.application_version.cosmos_sdk_version,
+      binaryVersion: data.application_version.version
+    })
+  }
+};
 
-//gets the running total for the most recent ten minute interval
+//function to fetch data from a given URL (used by queryMap to retrieve parameter data)
+function fetchParamData(fullUrl) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(fullUrl);
+    const lib = parsedUrl.protocol === 'https:' ? httpsReal : http;
+
+    const req = lib.get(parsedUrl, (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          resolve(json);
+        } catch (err) {
+          reject(`Failed to parse JSON: ${err.message}`);
+        }
+      });
+    });
+
+    req.on('error', (err) => reject(`Request error: ${err.message}`));
+  });
+}
+//fetches all on-chain module parameters defined in queryMap and stores in redis
+async function getAllChainParams() {
+  const results = {};
+
+  for (const [key, { url, extract }] of Object.entries(queryMap)) {
+    try {
+      const data = await fetchParamData(url);
+      results[key] = extract(data);
+    } catch (err) {
+      console.error(`[ERROR] ${key}: ${err}`);
+      results[key] = null;
+    }
+  }
+
+  await client.set('param_data', JSON.stringify(results));
+
+
+}
+//gets the running count for the most recent ten minute interval
 function getNewestEntry(){
+  if(!startTime){
+    return null;
+  }
   let ts = startTime.substring(0,11) + " " + startTime.substring(11,17);
 
   let sendsEntry = {value: formatToBLD(tenMinSend), timeStamp: ts};
@@ -453,10 +577,15 @@ async function start()//upon start, clears redis and starts main functions
   await delay(10000);
   realTimeQuery();
   historicalQuery();
+  getAllChainParams();
+  setInterval(getAllChainParams,24 * 60 * 60 * 1000);//once per day
+
 }
 
+///function used to convert UBLD to BLD
 function formatToBLD(uBLD){
   return (uBLD / 1000000).toFixed(2);
 }
+
 
 module.exports = getNewestEntry;
