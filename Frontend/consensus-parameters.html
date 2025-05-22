@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agoric Blockchain Parameters</title>
-    <link rel="stylesheet" href="consensus-parameter-styles.css">
+    <link rel="stylesheet" href="consensus-parameters-styles.css">
 </head>
 <body>
     <div class="header-bar">
@@ -36,64 +36,64 @@
             <div class="param-section">
                 <h2>Minting Parameters</h2>
                 <ul>
-                    <li><span>Mint Denom:</span> UBLD</li>
-                    <li><span>Inflation Rate Change:</span> 13%</li>
-                    <li><span>Inflation Max:</span> 5%</li>
-                    <li><span>Inflation Min:</span> 5%</li>
-                    <li><span>Goal Bonded:</span> 67%</li>
-                    <li><span>Blocks Per Year:</span> 6,311,520</li>
+                    <li><span>Mint Denom:</span> <span id="mintDenom"></span></li>
+                    <li><span>Inflation Rate Change:</span> <span id="inflationRateChange"></span></li>
+                    <li><span>Inflation Max:</span> <span id="inflationMax"></span></li>
+                    <li><span>Inflation Min:</span> <span id="inflationMin"></span></li>
+                    <li><span>Goal Bonded:</span> <span id="goalBonded"></span></li>
+                    <li><span>Blocks Per Year:</span> <span id="blocksPerYear"></span></li>
                 </ul>
             </div>
         
             <div class="param-section">
                 <h2>Governance Parameters</h2>
                 <ul>
-                    <li><span>Min Deposit:</span> 5,000.00 BLD</li>
-                    <li><span>Max Deposit Period:</span> 2 days</li>
-                    <li><span>Quorum:</span> 33%</li>
-                    <li><span>Threshold:</span> 50%</li>
-                    <li><span>Veto Threshold:</span> 33%</li>
-                    <li><span>Voting Period:</span> 3 days</li>
+                    <li><span>Min Deposit:</span> <span id="minDeposit"></span></li>
+                    <li><span>Max Deposit Period:</span> <span id="maxDepositPeriod"></span></li>
+                    <li><span>Quorum:</span> <span id="quorum"></span></li>
+                    <li><span>Threshold:</span> <span id="threshold"></span></li>
+                    <li><span>Veto Threshold:</span> <span id="vetoThreshold"></span></li>
+                    <li><span>Voting Period:</span> <span id="votingPeriod"></span></li>
                 </ul>
             </div>
         
             <div class="param-section">
                 <h2>Slashing Parameters</h2>
                 <ul>
-                    <li><span>Signed Block Window:</span> 5,000</li>
-                    <li><span>Min Signed Per Window:</span> 5%</li>
-                    <li><span>Downtime Jail Duration:</span> 10 minutes</li>
-                    <li><span>Slash Fraction Double Sign:</span> 5%</li>
-                    <li><span>Slash Fraction Downtime:</span> 0%</li>
+                    <li><span>Signed Block Window:</span> <span id="signedBlockWindow"></span></li>
+                    <li><span>Min Signed Per Window:</span> <span id="signedPerWindow"></span></li>
+                    <li><span>Downtime Jail Duration:</span> <span id="downtimeJailDuration"></span></li>
+                    <li><span>Slash Fraction Double Sign:</span> <span id="slashFractionDoubleSign"></span></li>
+                    <li><span>Slash Fraction Downtime:</span> <span id="slashFractionDowntime"></span></li>
                 </ul>
             </div>
         
             <div class="param-section">
                 <h2>Staking Parameters</h2>
                 <ul>
-                    <li><span>Unbonding Time:</span> 21 days</li>
-                    <li><span>Max Validators:</span> 100</li>
-                    <li><span>Max Entries:</span> 7</li>
-                    <li><span>Historical Entries:</span> 10,000</li>
-                    <li><span>Bond Denom:</span> UBLD</li>
+                    <li><span>Unbonding Time:</span> <span id="unbondingTime"></span></li>
+                    <li><span>Max Validators:</span> <span id="maxValidators"></span></li>
+                    <li><span>Max Entries:</span> <span id="maxExtries"></span></li>
+                    <li><span>Historical Entries:</span> <span id="historicalEntries"></span></li>
+                    <li><span>Bond Denom:</span> <span id="bondDemon"></span></li>
                 </ul>
             </div>
         
             <div class="param-section">
                 <h2>Distribution Parameters</h2>
                 <ul>
-                    <li><span>Community Tax:</span> 0%</li>
-                    <li><span>Base Proposer Reward:</span> 0%</li>
-                    <li><span>Bonus Proposer Reward:</span> 0%</li>
-                    <li><span>Withdraw Address Enabled:</span> true</li>
+                    <li><span>Community Tax:</span> <span id="communityTax"></span></li>
+                    <li><span>Base Proposer Reward:</span> <span id="baseProposerReward"></span></li>
+                    <li><span>Bonus Proposer Reward:</span> <span id="bonusProposerReward"></span></li>
+                    <li><span>Withdraw Address Enabled:</span> <span id="withdrawAddressEnabled"></span></li>
                 </ul>
             </div>
         
             <div class="param-section">
                 <h2>Miscellaneous Parameters</h2>
                 <ul>
-                    <li><span>Cosmos SDK Version:</span> v0.46.16</li>
-                    <li><span>Binary Version:</span> 0.35.0-u18.5</li>
+                    <li><span>Cosmos SDK Version:</span> <span id="sdkVersion"></span></li>
+                    <li><span>Binary Version:</span> <span id="binaryVersion"></span></li>
                 </ul>
             </div>
         </div>
@@ -109,3 +109,4 @@
     <script src="consensus-parameters-script.js"></script>
 </body>
 </html>
+
