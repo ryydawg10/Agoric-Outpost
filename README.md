@@ -105,4 +105,8 @@ as part of an internship project with Kysen Pool
 Design and deployment support provided by the Kysen Pool team.  
 All rights to open-source this project were granted by Kysen Pool.  
 Kysenpool.io  
+
+This project is licensed under the [MIT License](LICENSE).  
+You are free to use, modify, and distribute this software with proper attribution. See the LICENSE file for full details.  
+
  
