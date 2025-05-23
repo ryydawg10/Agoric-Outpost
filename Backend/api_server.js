@@ -52,7 +52,6 @@ app.get('/api/4hr/fullLoad', async (req,res)=> {
 
   res.json({fourHrData});
 })
-
 //1day timeframe
 app.get('/api/1day/fullLoad', async (req,res)=> {
   const listLength = await getListLength('sends_data');
@@ -133,7 +132,6 @@ app.get('/api/1day/fullLoad', async (req,res)=> {
   res.json({formattedOneDayData});
 })
 
-//4day timeframe
 app.get('/api/4day/fullLoad', async (req,res)=> {
   const listLength = await getListLength('sends_data');
   let fourDayData;
@@ -240,7 +238,6 @@ app.get('/api/4day/fullLoad', async (req,res)=> {
   res.json({formattedFourDayData});
 })
 
-//8day timeframe
 app.get('/api/8day/fullLoad', async (req,res)=> {
   const listLength = await getListLength('sends_data');
   let eightDayData;
@@ -347,7 +344,6 @@ app.get('/api/8day/fullLoad', async (req,res)=> {
   res.json({formattedEightDayData});
 })
 
-//15 day timeframe
 app.get('/api/15day/fullLoad', async (req,res)=> {
 
   const listLength = await getListLength('sends_data');
@@ -430,7 +426,6 @@ app.get('/api/15day/fullLoad', async (req,res)=> {
   res.json({formattedFifteenDayData});
 })
 
-//1month timeframe
 app.get('/api/1month/fullLoad', async (req,res)=> {
   const listLength = await getListLength('sends_data');
   let oneMonthData;
@@ -511,14 +506,12 @@ app.get('/api/1month/fullLoad', async (req,res)=> {
   res.json({formattedOneMonthData});
 })
 
-//module parameters
 app.get('/api/params', async (req,res)=> {
   let paramData = await client.get('param_data');
   if (!paramData) {
   return res.status(404).json({ error: 'No parameter data found' });
 }
   paramData = JSON.parse(paramData);
-  console.log(paramData);
   res.json({paramData});
 })
 
@@ -531,8 +524,8 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
 });
 
-// gets (length) data points from redis
-async function getData(length) {
+
+async function getData(length) {// gets length data points from redis
   let sendData = await client.LRANGE('sends_data', 0, length-1);
   let delegationData = await client.LRANGE('delegation_data', 0, length-1);
   let successFailData = await client.LRANGE('success/fail_data', 0, length-1);
@@ -548,14 +541,12 @@ async function getData(length) {
   return dataObject;
 }
 
-// checks how many data points are in redis
-async function getListLength(listName) {
+async function getListLength(listName) {// checks how many data points are in redis
   const length = await client.lLen(listName);
   return length;
 }
 
-//timestamp formatting function. used when applicable 
-function formatTimeStamp(timeStamp) {
+function formatTimeStamp(timeStamp) { //timestamp formatting function. used when applicable 
   if (timeStamp.charAt(12) === ' ') {
     timeStamp = timeStamp.substring(0, 12) + timeStamp.substring(13);
     timeStamp = timeStamp + ' - ' + timeStamp.substring(timeStamp.length-5,timeStamp.length-2) + '59';
@@ -567,8 +558,7 @@ function formatTimeStamp(timeStamp) {
   return timeStamp;
 }
 
-//null checker utility function
-function nullChecker(data, index){
+function nullChecker(data, index){//null checker utility function
   if(data.sends[index].value==null || data.sends[index].value==undefined)
   {
     data.sends[index].value = 0;
