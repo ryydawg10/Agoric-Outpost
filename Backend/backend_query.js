@@ -60,11 +60,11 @@ function findData(jsonBlock) //gets data from a block and decodes from base64
   let blockRewards = 0;
   let k = 0;
   //rewards
-  if(jsonBlock.result.begin_block_events != undefined)
+  if(jsonBlock.result.begin_block_events != null)
   {
-  while(jsonBlock.result.begin_block_events[k] != undefined)
+  while(jsonBlock.result.begin_block_events[k] != null)
   {
-    if(jsonBlock.result.begin_block_events[k].type == 'rewards' && ((jsonBlock.result.begin_block_events[k].attributes[0].value!= null ||jsonBlock.result.begin_block_events[k].attributes[0].value!= undefined)&&jsonBlock.result.begin_block_events[k].attributes[0]!=undefined ))
+    if(jsonBlock.result.begin_block_events[k].type == 'rewards' && (jsonBlock.result.begin_block_events[k].attributes[0]!=null&&jsonBlock.result.begin_block_events[k].attributes[0].value!= null))
     {
       let base64Reward = jsonBlock.result.begin_block_events[k].attributes[0].value;
       let decodedBufferReward = Buffer.from(base64Reward, 'base64');
@@ -81,19 +81,19 @@ function findData(jsonBlock) //gets data from a block and decodes from base64
   }
 }
   //no transaction
-  if(jsonBlock.result.txs_results==undefined || jsonBlock.result.txs_results==null)
+  if(jsonBlock.result.txs_results==null)
   {
     let dataObject = {sends: blockSends, delegations: blockDelegations, tSuccessCount: success, tFailCount: fail};
     return dataObject;
   }
   let tx_results = jsonBlock.result.txs_results;
   let i = 0;
-  while(tx_results[i]!=undefined||tx_results[i]!=null)
+  while(tx_results[i]!=null)
   {
     for(let j=0;j<tx_results[i].events.length;j++)
     {
       //delegations
-      if((tx_results[i].events[j].type == 'delegate') && (tx_results[i].events[j].attributes[1]!=undefined&&tx_results[i].events[j].attributes[1]!=null))
+      if((tx_results[i].events[j].type == 'delegate') && (tx_results[i].events[j].attributes[1]!=null&&tx_results[i].events[j].attributes[1].value!=null))
       {
         let base64Delegation = tx_results[i].events[j].attributes[1].value;
         let decodedBufferDelegation = Buffer.from(base64Delegation, 'base64');
@@ -106,7 +106,7 @@ function findData(jsonBlock) //gets data from a block and decodes from base64
         }
       }
       //sends
-      if((tx_results[i].events[j].type == 'transfer') && (tx_results[i].events[j].attributes[2]!=undefined&&tx_results[i].events[j].attributes[2]!=null))
+      if((tx_results[i].events[j].type == 'transfer') && (tx_results[i].events[j].attributes[2]!=null&&tx_results[i].events[j].attributes[2].value!=null))
       {
         let base64Transfer = tx_results[i].events[j].attributes[2].value;
         let decodedBufferTransfer = Buffer.from(base64Transfer, 'base64');
@@ -332,31 +332,42 @@ async function historicalQuery() //Main function for getting historical data
 
 
 //gets timeStamp of a block
-async function getBlockTime(blockHeight)
-{
-  return await new Promise((resolve,reject) => {
-  https.get('http://65.109.34.121:36657/block?height='+ blockHeight, (resp) => {
-    let data = '';
-  
-    resp.on('data', (chunk) =>  {
-      data += chunk;
-    });
-  
-    resp.on('end', () => {
-      let jsonBlock = JSON.parse(data);
-      if(jsonBlock.error)
-      {
-        resolve(null);
-      }
-      else{
+async function getBlockTime(blockHeight) {
+  return await new Promise((resolve, reject) => {
+    https.get('http://65.109.34.121:36657/block?height=' + blockHeight, (resp) => {
+      let data = '';
 
-      let time = jsonBlock.result.block.header.time;
-      time = time.split('.')[0];
-      resolve(time);
-      }
-    })
-  })
-})}
+      resp.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      resp.on('end', () => {
+        try {
+          let jsonBlock = JSON.parse(data);
+          if (jsonBlock.error) {
+            resolve(null);
+          } else {
+            let time = jsonBlock.result.block.header.time;
+            time = time.split('.')[0];
+            resolve(time);
+          }
+        } catch (err) {
+          console.error('[getBlockTime] Failed to parse JSON for block', blockHeight);
+          console.error(err.message);
+          console.error(err.stack);
+          resolve(null); // Treat as missing block
+        }
+      });
+    }).on('error', (err) => {
+      console.error('[getBlockTime] Request failed');
+      console.error(`→ Block height: ${blockHeight}`);
+      console.error(`→ Error code: ${err.code}`);
+      console.error(`→ Message: ${err.message}`);
+      console.error(err.stack);
+      reject(err);
+    });
+  });
+}
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -395,7 +406,10 @@ async function getHistoricalData()
       resolve();
     });
   }).on('error', (err) => {
-
+      console.error('[getHistoricalData] Request failed');
+      console.error(`→ Block height: ${mostRecentBlock}`);
+      console.error(`→ Error code: ${err.code}`);
+      console.error(`→ Message: ${err.message}`);
     reject(err); // Reject the promise if there's an error
   });
 })}
@@ -433,7 +447,10 @@ async function getRealTimeData()
         resolve();
       });
     }).on('error', (err) => {
-
+        console.error('[getRealTimeData] Request failed');
+        console.error(`→ Block height: ${mostRecentBlock}`);
+        console.error(`→ Error code: ${err.code}`);
+        console.error(`→ Message: ${err.message}`);
       reject(err); // Reject the promise if there's an error
     });
   })
