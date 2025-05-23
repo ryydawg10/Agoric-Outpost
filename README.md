@@ -1,7 +1,5 @@
 # Agoric-Outpost
-Block explorer for agoric 
-
-Agoric Outpost is a full-stack web application that provides macroeconomic insights into the Agoric blockchain. It tracks key transaction metrics, aggregates them over time intervals, and visualizes them alongside live consensus module parameters.
+Agoric Outpost is a full-stack web application that provides macroeconomic insights into the Agoric blockchain. It tracks key transaction metrics, aggregates them over time intervals, and visualizes them alongside live consensus module parameters.  
 
 Features:
 -Real-Time & Historical Blockchain Data  
