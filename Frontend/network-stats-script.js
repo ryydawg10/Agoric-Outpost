@@ -1,5 +1,3 @@
-
-
 const ctx = document.getElementById('chart1').getContext('2d');
         const chart1 = new Chart(ctx, {
             type: 'bar', // Change this to the type of chart you need
@@ -54,7 +52,6 @@ const ctx = document.getElementById('chart1').getContext('2d');
                     }
                   }
                 }
-            
         );
 
 const ctx2 = document.getElementById('chart2').getContext('2d');
@@ -112,8 +109,7 @@ const ctx2 = document.getElementById('chart2').getContext('2d');
                       }
                     }
                   }
-                }
-              
+                }  
         );
 
 const ctx3 = document.getElementById('chart3').getContext('2d');
@@ -191,9 +187,7 @@ const ctx3 = document.getElementById('chart3').getContext('2d');
                 }
               },
               plugins: [ChartDataLabels]
-            }
-            
-          
+            } 
     );
 
 const ctx4 = document.getElementById('chart4').getContext('2d');
@@ -250,11 +244,9 @@ const ctx4 = document.getElementById('chart4').getContext('2d');
                   }
                 }
               }
-            }
-        
+            } 
     );
 
-    
 let currInt = 5;
 let currTimeFrame = '4hr';
 let abortController = null;
@@ -402,7 +394,6 @@ async function Load(timeFrame, length) {
         chart4.update();  // Ensure the chart is updated after data assignment
         chart3.update();
         chart2.update();
-        console.log("Chart updated successfully!");
         const timestampEl = document.getElementById("timestamp");
 
 
@@ -418,8 +409,7 @@ async function Load(timeFrame, length) {
 
 async function autoRefresh(interval)
 {
-    console.log(interval + "refresh")
-    formattedInt = interval + "min";
+    let formattedInt = interval + "min";
     const buttons = document.querySelectorAll('.interval-buttons');
     buttons.forEach(btn => {
         btn.classList.remove('selected');
@@ -443,7 +433,6 @@ async function autoUpdate(signal)
     difference = 0;
 
     signal.addEventListener('abort', () => {
-        console.log("prep triggered before exiting");
         endTime = Date.now();
     });
 
@@ -461,7 +450,6 @@ async function autoUpdate(signal)
             await wait(currInt * 60 * 1000 - difference, signal);
         } catch (err) {
             if (err.name === "AbortError") {
-                console.log("wait aborted");
                 break; // exit the loop cleanly
             } else {
                 throw err; // rethrow unexpected errors
@@ -469,7 +457,6 @@ async function autoUpdate(signal)
         }
 
         await Load(currTimeFrame, currLength);
-        console.log("refreshed" + currInt);
     }
 }
 function wait(ms, signal) {
