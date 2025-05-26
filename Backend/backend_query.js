@@ -3,28 +3,32 @@ const httpsReal = require('https');
 const client = require('./redis');
 const { timeStamp } = require('console');
 
-//real time variables
-let successCount = 0;
-let failCount = 0;
-let recentBlockData= {sends: 0, delegations: 0, tSuccessCount : 0, tFailCount: 0, rewards: 0};
-let tenMinSend = 0;
-let tenMinDelegation = 0;
-let tenMinRewards = 0;
-let realTimeTs;
-let mostRecentBlock;
-let startTime = null;
-let success = false;
+//real time variables(rt)
+let rtSuccessCount = 0;
+let rtFailCount = 0;
+let rtBlockData= {sends: 0, delegations: 0, tSuccessCount : 0, tFailCount: 0, rewards: 0};
+let rtTenMinSend = 0;
+let rtTenMinDelegation = 0;
+let rtTenMinRewards = 0;
+let rtBlockHeight;
+let rtPreviousTs;
+let rtCurrentTs;
+let rtEntryTime = null;
+let fetchRtDataRetry = true;
+let fetchRtTimeStampRetry = true;
 
-//historical variables
-let revSuccessCount = 0;
-let revFailCount = 0;
-let oldBlockData = {sends: 0, delegations: 0, tSuccessCount :0, tFailCount: 0, rewards: 0};
-let revTenMinSend = 0;
-let revTenMinDelegation = 0;
-let revTenMinRewards = 0;
-let reverseBlock;
-let lastTs;
-let Ts;
+//historical variables(hs)
+let hsSuccessCount = 0;
+let hsFailCount = 0;
+let hsBlockData = {sends: 0, delegations: 0, tSuccessCount :0, tFailCount: 0, rewards: 0};
+let hsTenMinSend = 0;
+let hsTenMinDelegation = 0;
+let hsTenMinRewards = 0;
+let hsBlockHeight;
+let hsPreviousTs;
+let hsCurrentTs;
+let fetchHsDataRetry = true;
+let fetchHsTimeStampRetry = true;
 
 
 start();
@@ -60,72 +64,59 @@ function findData(jsonBlock) //gets data from a block and decodes from base64
   let blockRewards = 0;
   let k = 0;
   //rewards
-  if(jsonBlock.result.begin_block_events != null)
-  {
-  while(jsonBlock.result.begin_block_events[k] != null)
-  {
-    if(jsonBlock.result.begin_block_events[k].type == 'rewards' && (jsonBlock.result.begin_block_events[k].attributes[0]!=null&&jsonBlock.result.begin_block_events[k].attributes[0].value!= null))
-    {
-      let base64Reward = jsonBlock.result.begin_block_events[k].attributes[0].value;
-      let decodedBufferReward = Buffer.from(base64Reward, 'base64');
-      let decodedReward = decodedBufferReward.toString('utf8');
-      decodedReward = decodedReward.substring(0,decodedReward.length - 4);
-      decodedReward = Number(decodedReward);
-      decodedReward = Math.floor(decodedReward);
-      if(!isNaN(decodedReward))
-        {
-        blockRewards+=decodedReward;
+  if(jsonBlock.result.begin_block_events != null) {
+    while(jsonBlock.result.begin_block_events[k] != null) {
+      if(jsonBlock.result.begin_block_events[k].type == 'rewards' && (jsonBlock.result.begin_block_events[k].attributes[0] != null && jsonBlock.result.begin_block_events[k].attributes[0].value != null)) {
+        let base64Reward = jsonBlock.result.begin_block_events[k].attributes[0].value;
+        let decodedBufferReward = Buffer.from(base64Reward, 'base64');
+        let decodedReward = decodedBufferReward.toString('utf8');
+        decodedReward = decodedReward.substring(0,decodedReward.length - 4);
+        decodedReward = Number(decodedReward);
+        decodedReward = Math.floor(decodedReward);
+        if(!isNaN(decodedReward)) {
+          blockRewards+=decodedReward;
         }
+      } 
+      k++;
     }
-    k++;
   }
-}
   //no transaction
-  if(jsonBlock.result.txs_results==null)
-  {
-    let dataObject = {sends: blockSends, delegations: blockDelegations, tSuccessCount: success, tFailCount: fail};
+  if(jsonBlock.result.txs_results == null) {
+    let dataObject = {sends: blockSends, delegations: blockDelegations, tSuccessCount: success, tFailCount: fail, rewards: blockRewards};
     return dataObject;
   }
   let tx_results = jsonBlock.result.txs_results;
   let i = 0;
-  while(tx_results[i]!=null)
-  {
-    for(let j=0;j<tx_results[i].events.length;j++)
-    {
+  while(tx_results[i] != null) {
+    for(let j=0;j<tx_results[i].events.length;j++) {
       //delegations
-      if((tx_results[i].events[j].type == 'delegate') && (tx_results[i].events[j].attributes[1]!=null&&tx_results[i].events[j].attributes[1].value!=null))
-      {
+      if((tx_results[i].events[j].type == 'delegate') && (tx_results[i].events[j].attributes[1]!=null&&tx_results[i].events[j].attributes[1].value!=null)) {
         let base64Delegation = tx_results[i].events[j].attributes[1].value;
         let decodedBufferDelegation = Buffer.from(base64Delegation, 'base64');
         let decodedDelegation = decodedBufferDelegation.toString('utf8');
         decodedDelegation = decodedDelegation.substring(0,decodedDelegation.length - 4);
         decodedDelegation = Number(decodedDelegation);
-        if(!isNaN(decodedDelegation))
-        {
-        blockDelegations+=decodedDelegation;
+        if(!isNaN(decodedDelegation)) {
+          blockDelegations+=decodedDelegation;
         }
       }
       //sends
-      if((tx_results[i].events[j].type == 'transfer') && (tx_results[i].events[j].attributes[2]!=null&&tx_results[i].events[j].attributes[2].value!=null))
-      {
+      if((tx_results[i].events[j].type == 'transfer') && (tx_results[i].events[j].attributes[2]!=null&&tx_results[i].events[j].attributes[2].value!=null)) {
         let base64Transfer = tx_results[i].events[j].attributes[2].value;
         let decodedBufferTransfer = Buffer.from(base64Transfer, 'base64');
         let decodedTransfer = decodedBufferTransfer.toString('utf8');
         decodedTransfer = decodedTransfer.substring(0,decodedTransfer.length - 4);
         decodedTransfer = Number(decodedTransfer);
-        if(!isNaN(decodedTransfer))
-        {
-        blockSends+=decodedTransfer;
+        if(!isNaN(decodedTransfer)) {
+          blockSends+=decodedTransfer;
         }
       }
     }
     //success/fail
-    if(tx_results[i].code == 0)
-    {
+    if(tx_results[i].code == 0) {
       success++;
     }
-    else
-    {
+    else {
       fail++;
     }
     i++
@@ -142,7 +133,7 @@ async function storeNewSend(send, delegation, successFail, rewards) { //stores s
   await client.LPUSH('success/fail_data', successFail);
   await client.LPUSH('rewards_data', rewards);
   let length =  await client.lLen('sends_data');
-  if (length>4030)
+  if (length>4030) //starts deleting old entries when a full month of data is stored
   {
     await client.RPOP('sends_data');
     await client.RPOP('delegation_data');
@@ -159,180 +150,211 @@ async function storeOldSend(send, delegation, successFail, rewards) { //stores s
 }
 
 /*
-The realTimeQuery function and historicalQuery work together for the first 10 minute interval of data and diverge after. 
-For the first 10 minute interval, realTimeQuery and historicalQuery share the same counters(sends, delegations, success/fail, rewards). 
+The realTimeQuery function and historicalQuery work together for the first 10 minute interval of data and diverge after to ensure the first 10 minute interval is accurate.
+For the first 10 minute interval, realTimeQuery and historicalQuery share the same counters(rtTenMinSends, rtTenMinDelegations, rtSuccessCount, rtFailCount, rtTenMinRewards). 
 RealTimeQuery moves forward and historicalQuery moves backwards. Once historicalQuery reaches it's end of the 10 minute interval it starts using it's own sum from then on immedietly.
 If realtimeQuery reaches its end of the chunk before historicalQuery it waits for historicalQuery to reach it's end of the chunk before sending the data to redis and moving onto the next chunk.
-This ensures the first 10 minute chunk of data is accurate.
+Each function finds the even 10 minute points by comparing the timestamp of the current block to the timestamp of the block before it.
 */
 
-
-
-
-async function realTimeQuery() { //Main function for getting real time data
+//Main function for real time data
+async function realTimeQuery() {
   let firstBlock = false;
-  mostRecentBlock = await getLatestBlock();
-  let lastRealtimeTs = await getBlockTime(mostRecentBlock-1);
-  reverseBlock= mostRecentBlock-1;
+  rtBlockHeight = await getLatestBlock(); //records current block height
+  hsBlockHeight = rtBlockHeight - 1; //sets the starting block for HistoricalQuery
   while (true) {
-            await getRealTimeData()
-            if(success==true)
-            {
-            realTimeTs = await getBlockTime(mostRecentBlock);
-            if(firstBlock==false)
-            {
-            lastTs=realTimeTs;
-            firstBlock = true;
-            }
-            if(realTimeTs.substring(15,16)=='0' && lastRealtimeTs.substring(15,16)!=realTimeTs.substring(15,16)) //finds the end of the 10 minute interval
-            {
-              while(startTime==null)//waits for historicalQuery to reach the end of the first interval before finalizing the first 10 minute interval
-              {
-                await delay(1000);
-              }
-              //format and store in redis excluding current block
-              let formattedTs = startTime.substring(0,11) + " " + startTime.substring(11,17);
-              tenMinSend = formatToBLD(tenMinSend);
-              let sendsJsonStr = {value: tenMinSend, timeStamp: formattedTs};
-              sendsJsonStr = JSON.stringify(sendsJsonStr);
-              tenMinDelegation = formatToBLD(tenMinDelegation);
-              let delegationsJsonStr = {value: tenMinDelegation, timeStamp: formattedTs};
-              delegationsJsonStr= JSON.stringify(delegationsJsonStr);
-              let newSuccessFail = {success: successCount, fail: failCount, timeStamp: formattedTs};
-              newSuccessFail = JSON.stringify(newSuccessFail);
-              tenMinRewards = formatToBLD(tenMinRewards);
-              let newRewards = {value: tenMinRewards, timeStamp: formattedTs};
-              newRewards = JSON.stringify(newRewards);
-              await storeNewSend(sendsJsonStr, delegationsJsonStr, newSuccessFail, newRewards);
 
-              //reset counters
-              tenMinSend=0;
-              tenMinDelegation=0;
-              successCount=0;
-              failCount=0;
-              tenMinRewards=0;
-              
-              //add current block data to counters
-              successCount+=recentBlockData.tSuccessCount;
-              failCount+=recentBlockData.tFailCount;
-              tenMinSend+=recentBlockData.sends;
-              tenMinDelegation+=recentBlockData.delegations;
-              tenMinRewards+=recentBlockData.rewards;
+    while (fetchRtTimeStampRetry == true && firstBlock == false) { //retry logic for getRealTimeBlockTime
+      rtPreviousTs = await getRealTimeBlockTime(rtBlockHeight - 1);
+      if (fetchRtTimeStampRetry == true) {
+        await delay(5000);
+      }
+    }
+    if(firstBlock == false){ //reset retry flag on first block
+      fetchRtTimeStampRetry = true;
+    }
+    while (fetchRtDataRetry == true) { //retry logic for getRealTimeData
+      await getRealTimeData();
+      if (fetchRtDataRetry == true) {
+        await delay(5000);
+      }
+    }
 
-              startTime=realTimeTs;
-              lastRealtimeTs=realTimeTs;
-              mostRecentBlock++;
-              success=false;
-              }else{
-                tenMinSend+=recentBlockData.sends;
-                tenMinDelegation+=recentBlockData.delegations;
-                successCount+=recentBlockData.tSuccessCount;
-                failCount+=recentBlockData.tFailCount;
-                tenMinRewards+=recentBlockData.rewards;
+    while (fetchRtTimeStampRetry == true){ //retry logic for getRealTimeBlockTime
+      rtCurrentTs = await getRealTimeBlockTime(rtBlockHeight);
+      if (fetchRtTimeStampRetry == true) {
+        await delay(5000);
+      }
+    }
 
-                mostRecentBlock++; 
-                lastRealtimeTs=realTimeTs;
-                success=false;
-              }}
-              await delay(5000);
-          }
+    if(firstBlock == false) {
+      hsPreviousTs = rtCurrentTs;//sets the previous block timestamp for the historicalQuery function to avoid the edge case where the program starts exactly on an even 10 minute point. 
+      firstBlock = true;
+    }
+
+    if(rtCurrentTs.substring(15,16) == '0' && rtPreviousTs.substring(15,16) != rtCurrentTs.substring(15,16)) {//finds the end of the 10 minute interval. substring(15,16) is the minute digit.
+      while(rtEntryTime == null) {//waits for historicalQuery to reach the end of the first interval before finalizing the first 10 minute interval
+        await delay(1000);
       }
 
-
-
-async function historicalQuery() //Main function for getting historical data
-{
-  let firstInterval = true;
-  let formattedTs;
-  let length = await client.lLen('sends_data');
-
-  while(length<4030)
-  {
-    length = await client.lLen('sends_data');
-    while (lastTs==null)//timestamp of realTimeQuerys first block
-    {
-      await delay(1000);
-    }
-    Ts = await getBlockTime(reverseBlock);
-    if (Ts == null)
-    {
-      continue;
-    }
-    await getHistoricalData();
-
-    if(Ts.substring(15,16)=='9' && lastTs.substring(15,16)!=Ts.substring(15,16))//find the end of the 10 minute interval
-    {
-      if(firstInterval == true)//end of first 10 minute interval
-      {
-
-        revTenMinSend+=oldBlockData.sends;
-        revTenMinDelegation+=oldBlockData.delegations;
-        revSuccessCount+=oldBlockData.tSuccessCount;
-        revFailCount+=oldBlockData.tFailCount;
-        revTenMinRewards+=oldBlockData.rewards;
-
-        startTime= lastTs.substring(0,11) + " " + lastTs.substring(11,17);//sets startTime allowing realTimeQuery to finalize the first 10 minute interval once it reaches the end.
-        firstInterval = false;
-      }
-      else
-      {
-      //send currunt counts to redis excluding current block
-      formattedTs = lastTs.substring(0,11) + " " + lastTs.substring(11,17);
-      revTenMinSend = formatToBLD(revTenMinSend);
-      let oldSendsJsonStr = {value: revTenMinSend, timeStamp: formattedTs};
-      oldSendsJsonStr = JSON.stringify(oldSendsJsonStr);
-      revTenMinDelegation = formatToBLD(revTenMinDelegation);
-      let oldDelegationJsonStr = {value: revTenMinDelegation, timeStamp: formattedTs};
-      oldDelegationJsonStr = JSON.stringify(oldDelegationJsonStr);
-      let oldSuccessFail = {success: revSuccessCount, fail: revFailCount, timeStamp: formattedTs};
-      oldSuccessFail = JSON.stringify(oldSuccessFail);
-      revTenMinRewards = formatToBLD(revTenMinRewards);
-      let oldRewards = {value: revTenMinRewards, timeStamp: formattedTs};
-      oldRewards = JSON.stringify(oldRewards);
-      await storeOldSend(oldSendsJsonStr, oldDelegationJsonStr, oldSuccessFail, oldRewards);
+      //format and store in redis excluding current block
+      let formattedTs = rtEntryTime.substring(0,11) + " " + rtEntryTime.substring(11,17);
+      rtTenMinSend = formatToBLD(rtTenMinSend);
+      let sendsJsonStr = {value: rtTenMinSend, timeStamp: formattedTs};
+      sendsJsonStr = JSON.stringify(sendsJsonStr);
+      rtTenMinDelegation = formatToBLD(rtTenMinDelegation);
+      let delegationsJsonStr = {value: rtTenMinDelegation, timeStamp: formattedTs};
+      delegationsJsonStr= JSON.stringify(delegationsJsonStr);
+      let newSuccessFail = {success: rtSuccessCount, fail: rtFailCount, timeStamp: formattedTs};
+      newSuccessFail = JSON.stringify(newSuccessFail);
+      rtTenMinRewards = formatToBLD(rtTenMinRewards);
+      let newRewards = {value: rtTenMinRewards, timeStamp: formattedTs};
+      newRewards = JSON.stringify(newRewards);
+      await storeNewSend(sendsJsonStr, delegationsJsonStr, newSuccessFail, newRewards);
 
       //reset counters
-      revTenMinSend=0;
-      revTenMinDelegation=0;
-      revSuccessCount = 0;
-      revFailCount = 0;
-      revTenMinRewards = 0;
-
+      rtTenMinSend = 0;
+      rtTenMinDelegation = 0;
+      rtSuccessCount = 0;
+      rtFailCount = 0;
+      rtTenMinRewards = 0;
+              
       //add current block data to counters
-      revTenMinSend+=oldBlockData.sends;
-      revTenMinDelegation+=oldBlockData.delegations;
-      revSuccessCount = oldBlockData.tSuccessCount;
-      revFailCount = oldBlockData.tFailCount;
-      revTenMinRewards = oldBlockData.rewards;
+      rtSuccessCount += rtBlockData.tSuccessCount;
+      rtFailCount += rtBlockData.tFailCount;
+      rtTenMinSend += rtBlockData.sends;
+      rtTenMinDelegation += rtBlockData.delegations;
+      rtTenMinRewards += rtBlockData.rewards;
 
-      length = await client.lLen('sends_data');
-      }
+      rtEntryTime = rtCurrentTs; //records the beginning timestamp of the next 10 minute interval
+      rtPreviousTs = rtCurrentTs;
+      rtBlockHeight++;
+      fetchRtDataRetry = true;
+      fetchRtTimeStampRetry = true;
     }
-    else
-    {
-      if(firstInterval == true)//hasn't reached the end of the first 10 min interval
-      {
-        tenMinSend+=oldBlockData.sends;
-        tenMinDelegation+=oldBlockData.delegations;
-        successCount+=oldBlockData.tSuccessCount;
-        failCount+=oldBlockData.tFailCount;
-        tenMinRewards+=oldBlockData.rewards
-      }
-      else{
-        revTenMinSend+=oldBlockData.sends;
-        revTenMinDelegation+=oldBlockData.delegations;
-        revSuccessCount+=oldBlockData.tSuccessCount;
-        revFailCount+=oldBlockData.tFailCount;
-        revTenMinRewards+=oldBlockData.rewards;
-      }
+    else{
+      rtTenMinSend += rtBlockData.sends;
+      rtTenMinDelegation += rtBlockData.delegations;
+      rtSuccessCount += rtBlockData.tSuccessCount;
+      rtFailCount += rtBlockData.tFailCount;
+      rtTenMinRewards += rtBlockData.rewards;
+
+      rtBlockHeight++; 
+      rtPreviousTs = rtCurrentTs;
+      fetchRtDataRetry = true;
+      fetchRtTimeStampRetry = true;
     }
-    lastTs=Ts;
   }
 }
 
 
-//gets timeStamp of a block
-async function getBlockTime(blockHeight) {
+ //Main function for historical data
+async function historicalQuery()
+{
+  let firstInterval = true;
+  let length = await client.lLen('sends_data');
+
+  while(length<4030) { //function stops when 1 month of data is collected
+    length = await client.lLen('sends_data');
+    while (hsPreviousTs == null) {//timestamp of realTimeQuerys first block
+      await delay(1000);
+    }
+    
+    while (fetchHsDataRetry == true) { //retry logic for getHistoricalData
+      await getHistoricalData();
+      if (fetchHsDataRetry == true) {
+        await delay(5000);
+      }
+    }
+
+    while (fetchHsTimeStampRetry == true) { //retry logic for getHistoricalBlockTime
+      hsCurrentTs = await getHistoricalBlockTime(hsBlockHeight);
+      if (fetchHsTimeStampRetry == true) {
+        await delay(5000);
+      }
+    }
+
+    if(hsCurrentTs.substring(15,16)=='9' && hsPreviousTs.substring(15,16)!=hsCurrentTs.substring(15,16)) {//find the end of the 10 minute interval
+      if(firstInterval == true) {//end of first 10 minute interval
+
+        hsTenMinSend += hsBlockData.sends;
+        hsTenMinDelegation += hsBlockData.delegations;
+        hsSuccessCount += hsBlockData.tSuccessCount;
+        hsFailCount += hsBlockData.tFailCount;
+        hsTenMinRewards += hsBlockData.rewards;
+        hsBlockHeight--;
+        fetchHsDataRetry = true;
+        fetchHsTimeStampRetry = true;
+
+        rtEntryTime= hsPreviousTs.substring(0,11) + " " + hsPreviousTs.substring(11,17);//sets rtEntryTime allowing realTimeQuery to finalize the first 10 minute interval once it reaches the end.
+        firstInterval = false;
+      }
+      else {
+
+      //send currunt counts to redis excluding current block
+      let formattedTs = hsPreviousTs.substring(0,11) + " " + hsPreviousTs.substring(11,17);
+      hsTenMinSend = formatToBLD(hsTenMinSend);
+      let oldSendsJsonStr = {value: hsTenMinSend, timeStamp: formattedTs};
+      oldSendsJsonStr = JSON.stringify(oldSendsJsonStr);
+      hsTenMinDelegation = formatToBLD(hsTenMinDelegation);
+      let oldDelegationJsonStr = {value: hsTenMinDelegation, timeStamp: formattedTs};
+      oldDelegationJsonStr = JSON.stringify(oldDelegationJsonStr);
+      let oldSuccessFail = {success: hsSuccessCount, fail: hsFailCount, timeStamp: formattedTs};
+      oldSuccessFail = JSON.stringify(oldSuccessFail);
+      hsTenMinRewards = formatToBLD(hsTenMinRewards);
+      let oldRewards = {value: hsTenMinRewards, timeStamp: formattedTs};
+      oldRewards = JSON.stringify(oldRewards);
+      await storeOldSend(oldSendsJsonStr, oldDelegationJsonStr, oldSuccessFail, oldRewards);
+
+      //reset counters
+      hsTenMinSend = 0;
+      hsTenMinDelegation = 0;
+      hsSuccessCount = 0;
+      hsFailCount = 0;
+      hsTenMinRewards = 0;
+
+      //add current block data to counters
+      hsTenMinSend += hsBlockData.sends;
+      hsTenMinDelegation += hsBlockData.delegations;
+      hsSuccessCount = hsBlockData.tSuccessCount;
+      hsFailCount = hsBlockData.tFailCount;
+      hsTenMinRewards = hsBlockData.rewards;
+      hsBlockHeight--;
+      fetchHsDataRetry = true;
+      fetchHsTimeStampRetry = true;
+
+      length = await client.lLen('sends_data');
+      }
+    }
+    else {
+      if(firstInterval == true) {//hasn't reached the end of the first 10 min interval(historicalQuery adds to realTimeQuery counters)
+        rtTenMinSend += hsBlockData.sends;
+        rtTenMinDelegation += hsBlockData.delegations;
+        rtSuccessCount += hsBlockData.tSuccessCount;
+        rtFailCount += hsBlockData.tFailCount;
+        rtTenMinRewards += hsBlockData.rewards;
+        hsBlockHeight--;
+        fetchHsDataRetry = true;
+        fetchHsTimeStampRetry = true;
+      }
+      else{
+        hsTenMinSend += hsBlockData.sends;
+        hsTenMinDelegation += hsBlockData.delegations;
+        hsSuccessCount += hsBlockData.tSuccessCount;
+        hsFailCount += hsBlockData.tFailCount;
+        hsTenMinRewards += hsBlockData.rewards;
+        hsBlockHeight--;
+        fetchHsDataRetry = true;
+        fetchHsTimeStampRetry = true;
+      }
+    }
+    hsPreviousTs=hsCurrentTs;
+  }
+}
+
+
+//gets timeStamp of a block for realTimeQuery
+async function getRealTimeBlockTime(blockHeight) {
   return await new Promise((resolve, reject) => {
     https.get('http://65.109.34.121:36657/block?height=' + blockHeight, (resp) => {
       let data = '';
@@ -342,43 +364,67 @@ async function getBlockTime(blockHeight) {
       });
 
       resp.on('end', () => {
-        try {
-          let jsonBlock = JSON.parse(data);
-          if (jsonBlock.error) {
-            resolve(null);
-          } else {
-            let time = jsonBlock.result.block.header.time;
-            time = time.split('.')[0];
-            resolve(time);
-          }
-        } catch (err) {
-          console.error('[getBlockTime] Failed to parse JSON for block', blockHeight);
-          console.error(err.message);
-          console.error(err.stack);
-          resolve(null); // Treat as missing block
+        let jsonBlock = JSON.parse(data);
+        if (jsonBlock.error ||
+            !jsonBlock.result ||
+            !jsonBlock.result.block ||
+            !jsonBlock.result.block.header ||
+            !jsonBlock.result.block.header.time) {
+          resolve(null);
+        } else {
+          let time = jsonBlock.result.block.header.time;
+          time = time.split('.')[0];
+          fetchRtTimeStampRetry = false;
+          resolve(time);
         }
       });
     }).on('error', (err) => {
-      console.error('[getBlockTime] Request failed');
-      console.error(`→ Block height: ${blockHeight}`);
-      console.error(`→ Error code: ${err.code}`);
-      console.error(`→ Message: ${err.message}`);
-      console.error(err.stack);
-      reject(err);
+      resolve(null);
     });
   });
 }
+
+//gets timeStamp of a block for HistoricalQuery (two getBlockTime function are required for retry logic)
+async function getHistoricalBlockTime(blockHeight) {
+  return await new Promise((resolve, reject) => {
+    https.get('http://65.109.34.121:36657/block?height=' + blockHeight, (resp) => {
+      let data = '';
+
+      resp.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      resp.on('end', () => {
+        let jsonBlock = JSON.parse(data);
+        if (jsonBlock.error ||
+            !jsonBlock.result ||
+            !jsonBlock.result.block ||
+            !jsonBlock.result.block.header ||
+            !jsonBlock.result.block.header.time) {
+          resolve(null);
+        } else {
+          let time = jsonBlock.result.block.header.time;
+          time = time.split('.')[0];
+          fetchHsTimeStampRetry = false;
+          resolve(time);
+        }
+      });
+    }).on('error', (err) => {
+      resolve(null);
+    });
+  });
+}
+
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// API call function used by historicalQuery to fetch data for a specific block height (reverseBlock)
+// API call function used by historicalQuery to fetch data for a specific block height (hsBlockHeight)
 async function getHistoricalData()
 {
-  
   await new Promise((resolve, reject) => {
-  https.get(`http://65.109.34.121:36657/block_results?height=${reverseBlock}`, (res) => {
+  https.get(`http://65.109.34.121:36657/block_results?height=${hsBlockHeight}`, (res) => {
     let bData = '';
 
     res.on('data', (chunk) => {
@@ -389,37 +435,22 @@ async function getHistoricalData()
       const data = JSON.parse(bData);
 
       // Retry if there's a specific error in the response
-      if (data.error) {
-
-
-        if (data.error.code === -32603 && data.error.data.includes('could not find results for height')) {
-
-        }else if (data.error.code === -32603 && data.error.data.includes('must be less than or equal to the current blockchain height')) {
-
-        }
-      } else {
-        if (data.result.txs_results != null) {
-          oldBlockData = findData(data);
-        }
-        reverseBlock--;
+      if (!data.error) {
+        hsBlockData = findData(data);
+        fetchHsDataRetry = false;
       }
       resolve();
     });
   }).on('error', (err) => {
-      console.error('[getHistoricalData] Request failed');
-      console.error(`→ Block height: ${mostRecentBlock}`);
-      console.error(`→ Error code: ${err.code}`);
-      console.error(`→ Message: ${err.message}`);
-    reject(err); // Reject the promise if there's an error
+    resolve(); // Reject the promise if there's an error
   });
 })}
 
-// API call function used by realTimeQuery to fetch data for the latest block height (mostRecentBlock)
+// API call function used by realTimeQuery to fetch data for the latest block height (rtBlockHeight)
 async function getRealTimeData()
 {
-
   await new Promise((resolve, reject) => {
-    https.get(`http://65.109.34.121:36657/block_results?height=${mostRecentBlock}`, (res) => {
+    https.get(`http://65.109.34.121:36657/block_results?height=${rtBlockHeight}`, (res) => {
       let bData = '';
   
       res.on('data', (chunk) => {
@@ -429,29 +460,14 @@ async function getRealTimeData()
       res.on('end', () => {
         const data = JSON.parse(bData);
 
-        if (data.error) {
-
-  
-          if (data.error.code === -32603 && data.error.data.includes('could not find results for height')) {
-
-          }else if (data.error.code === -32603 && data.error.data.includes('must be less than or equal to the current blockchain height')) {
-
-          }
-        } else {
-          if (data.result.txs_results != null) {
-            recentBlockData = findData(data);
-            success=true;
-          }
-          success=true;
+        if (!data.error) {
+          rtBlockData = findData(data);
+          fetchRtDataRetry = false;
         }
         resolve();
       });
     }).on('error', (err) => {
-        console.error('[getRealTimeData] Request failed');
-        console.error(`→ Block height: ${mostRecentBlock}`);
-        console.error(`→ Error code: ${err.code}`);
-        console.error(`→ Message: ${err.message}`);
-      reject(err); // Reject the promise if there's an error
+      resolve(); // Reject the promise if there's an error
     });
   })
 }
@@ -571,15 +587,15 @@ async function getAllChainParams() {
 }
 //gets the running count for the most recent ten minute interval
 function getNewestEntry(){
-  if(!startTime){
+  if(!rtEntryTime){
     return null;
   }
-  let ts = startTime.substring(0,11) + " " + startTime.substring(11,17);
+  let ts = rtEntryTime.substring(0,11) + " " + rtEntryTime.substring(11,17);
 
-  let sendsEntry = {value: formatToBLD(tenMinSend), timeStamp: ts};
-  let delegationsEntry = {value: formatToBLD(tenMinDelegation), timeStamp: ts};
-  let successFailEntry = {success: successCount, fail: failCount, timeStamp: ts};
-  let rewardsEntry = {value: formatToBLD(tenMinRewards), timeStamp: ts};
+  let sendsEntry = {value: formatToBLD(rtTenMinSend), timeStamp: ts};
+  let delegationsEntry = {value: formatToBLD(rtTenMinDelegation), timeStamp: ts};
+  let successFailEntry = {success: rtSuccessCount, fail: rtFailCount, timeStamp: ts};
+  let rewardsEntry = {value: formatToBLD(rtTenMinRewards), timeStamp: ts};
   let NewestEntry= {sendsEntry, delegationsEntry, successFailEntry, rewardsEntry};
 
   return NewestEntry;
